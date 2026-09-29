@@ -2,9 +2,12 @@ name: Send recharge reminders
 
 on:
   schedule:
-    # 15:00 UTC = 9:00 PM Bangladesh/India time (UTC+6). Change the hour if
-    # you want a different local time - GitHub's schedule is always UTC.
-    - cron: '0 15 * * *'
+    # Every hour, on the hour (UTC). Needed so that on the day before expiry
+    # and on the expiry day itself the user gets one push per hour. On other
+    # days the API only returns the one-shot 7-day / 3-day reminders (already
+    # marked after the first successful delivery), so extra hourly runs are
+    # cheap no-ops. GitHub's schedule is always UTC.
+    - cron: '0 * * * *'
   workflow_dispatch:
     inputs:
       test_mode:
@@ -30,4 +33,6 @@ jobs:
           CRON_SECRET: ${{ secrets.CRON_SECRET }}
           VAPID_PRIVATE_KEY: ${{ secrets.VAPID_PRIVATE_KEY }}
           VAPID_CLAIM_EMAIL: ${{ secrets.VAPID_CLAIM_EMAIL }}
-          TEST_MODE: ${{ github.event.inputs.test_mode }}
+          # schedule events have no inputs; default to false so we never
+          # accidentally enter test mode on the hourly cron.
+          TEST_MODE: ${{ github.event.inputs.test_mode || 'false' }}

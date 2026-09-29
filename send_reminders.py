@@ -1,5 +1,5 @@
 """
-Runs on GitHub Actions (not on PythonAnywhere) once a day.
+Runs on GitHub Actions (not on PythonAnywhere) every hour.
 
 Why this lives here and not on PythonAnywhere: sending a real push
 notification means talking to Google/Mozilla's push servers
@@ -10,6 +10,11 @@ sending; PythonAnywhere only ever answers "here's what needs sending" over
 a normal HTTPS GET request (which free-plan PythonAnywhere can serve fine,
 since that's an inbound request to PythonAnywhere, not an outbound one).
 
+Schedule note: the workflow runs hourly so that on the day before a recharge
+expires and on the expiry day itself the user gets one notification per hour.
+On other days the API only returns the one-shot 7-day / 3-day reminders
+(already marked after first delivery), so most hourly runs are no-ops.
+
 Required environment variables (set as GitHub Secrets):
   PYTHONANYWHERE_API_URL   e.g. https://yourusername.pythonanywhere.com/api/pending-reminders
   CRON_SECRET              must match the CRON_SECRET set in your WSGI file
@@ -18,7 +23,7 @@ Required environment variables (set as GitHub Secrets):
                            NOT the PEM-formatted one; see that script's comments)
   VAPID_CLAIM_EMAIL        optional, e.g. mailto:you@example.com
   TEST_MODE                optional, "true" to request a test push instead of
-                           waiting for a real 7-day/3-day reminder to be due
+                           waiting for a real 7-day/3-day/hourly reminder to be due
 """
 import os
 import sys
@@ -45,6 +50,12 @@ def main():
     resp = requests.get(API_URL, params=params, timeout=30)
     resp.raise_for_status()
     reminders = resp.json()
+
+    # Guard: the API must return a JSON list. An object usually means an
+    # error payload slipped through, or the secret/URL is wrong.
+    if not isinstance(reminders, list):
+        print(f"Unexpected API response (expected a list): {reminders!r}", file=sys.stderr)
+        sys.exit(1)
 
     if not reminders:
         print("No reminders due today." if not TEST_MODE else
