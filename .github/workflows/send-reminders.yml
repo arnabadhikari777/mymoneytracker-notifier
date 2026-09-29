@@ -1,0 +1,33 @@
+name: Send recharge reminders
+
+on:
+  schedule:
+    # 15:00 UTC = 9:00 PM Bangladesh/India time (UTC+6). Change the hour if
+    # you want a different local time - GitHub's schedule is always UTC.
+    - cron: '0 15 * * *'
+  workflow_dispatch:
+    inputs:
+      test_mode:
+        description: 'Send a test notification right now (ignores real due-dates)'
+        type: boolean
+        default: false
+
+jobs:
+  send:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - run: pip install requests pywebpush
+
+      - run: python send_reminders.py
+        env:
+          PYTHONANYWHERE_API_URL: ${{ secrets.PYTHONANYWHERE_API_URL }}
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+          VAPID_PRIVATE_KEY: ${{ secrets.VAPID_PRIVATE_KEY }}
+          VAPID_CLAIM_EMAIL: ${{ secrets.VAPID_CLAIM_EMAIL }}
+          TEST_MODE: ${{ github.event.inputs.test_mode }}
