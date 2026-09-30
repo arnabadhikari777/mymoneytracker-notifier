@@ -24,6 +24,8 @@ Required environment variables (set as GitHub Secrets):
   VAPID_CLAIM_EMAIL        optional, e.g. mailto:you@example.com
   TEST_MODE                optional, "true" to request a test push instead of
                            waiting for a real 7-day/3-day/hourly reminder to be due
+  APP_UPDATE              optional, "true" to notify every subscribed device that
+                           a new app build was deployed (in-app update banner)
 """
 import os
 import sys
@@ -36,13 +38,18 @@ CRON_SECRET = os.environ["CRON_SECRET"]
 VAPID_PRIVATE_KEY = os.environ["VAPID_PRIVATE_KEY"]
 VAPID_CLAIM_EMAIL = os.environ.get("VAPID_CLAIM_EMAIL") or "mailto:example@example.com"
 TEST_MODE = (os.environ.get("TEST_MODE") or "").lower() == "true"
+APP_UPDATE = (os.environ.get("APP_UPDATE") or "").lower() == "true"
 
 CLEANUP_URL = API_URL.rsplit("/", 1)[0] + "/subscription-cleanup"
 
 
 def main():
     params = {"secret": CRON_SECRET}
-    if TEST_MODE:
+    if APP_UPDATE:
+        params["app_update"] = "1"
+        print("Running in APP UPDATE MODE - notifying every subscribed device "
+              "that a new app build is available.")
+    elif TEST_MODE:
         params["test"] = "1"
         print("Running in TEST MODE - this ignores real due-dates and sends "
               "a test push to every subscribed device.")
@@ -58,9 +65,11 @@ def main():
         sys.exit(1)
 
     if not reminders:
-        print("No reminders due today." if not TEST_MODE else
-              "No devices are subscribed yet - open the app, go to Settings, "
-              "and tap 'Enable reminders' on your phone first.")
+        if APP_UPDATE or TEST_MODE:
+            print("No devices are subscribed yet - open the app, go to Settings, "
+                  "and tap 'Enable reminders' on your phone first.")
+        else:
+            print("No reminders due today.")
         return
 
     sent, failed = 0, 0

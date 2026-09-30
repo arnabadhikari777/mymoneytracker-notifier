@@ -14,6 +14,10 @@ on:
         description: 'Send a test notification right now (ignores real due-dates)'
         type: boolean
         default: false
+      app_update:
+        description: 'Notify all devices that the app was updated (after you deploy)'
+        type: boolean
+        default: false
 
 jobs:
   send:
@@ -34,5 +38,6 @@ jobs:
           VAPID_PRIVATE_KEY: ${{ secrets.VAPID_PRIVATE_KEY }}
           VAPID_CLAIM_EMAIL: ${{ secrets.VAPID_CLAIM_EMAIL }}
           # schedule events have no inputs; default to false so we never
-          # accidentally enter test mode on the hourly cron.
+          # accidentally enter test/app-update mode on the hourly cron.
           TEST_MODE: ${{ github.event.inputs.test_mode || 'false' }}
+          APP_UPDATE: ${{ github.event.inputs.app_update || 'false' }}
